@@ -43,9 +43,27 @@ from sklearn.metrics import classification_report, confusion_matrix
 import pickle
 
 def load_data(database_filepath):
+    """
+    Load the saved database in a dataframe and specify the features and the Target variables
+  
+    Parameters:
+    database_filepath: Location of the database
+  
+    Returns:
+    X: The features used in prediction
+ 
+    y: The target variables as this is a multiouput classification problem
+ 
+    category_names: names of the the columns of the output variables
+ 
+    """
     # load data from database "../data/disaster_response_db.db"
     engine = create_engine('sqlite:///'+ database_filepath)
+    
+    # Convert database to pandas dataframe
     df = pd.read_sql_table('DisasterProcess', engine) 
+    
+    # Specify the features and the target variables
     X = df.message
     y = df[df.columns[4:]]
     
@@ -55,7 +73,16 @@ def load_data(database_filepath):
     return X, y, category_names
 
 def tokenize(text):
-    
+    """
+    Cleaning the text and tokenize it.
+  
+    Parameters:
+    Text: the message column
+  
+    Returns:
+    Tokens: Tokenized cleaned version of the text
+ 
+    """
     # Lower Case
     text = text.lower()
     
@@ -86,34 +113,74 @@ def tokenize(text):
 
 
 def build_model():
-    # compute bag of word counts and tf-idf values
+    """
+    Biuld the pipeline of this model by specifying the vectorizing method and the classifier used and merge them in a pipline.
+    Then we make Hyperparameter optimization using gridsearchcv to get the best parameters for the model used in our use-case.
+    
+    Parameters:
+    N/A
+  
+    Returns:
+    Grid: The best model obtained
+ 
+    """
+    # compute tf-idf values
     vectorizer = TfidfVectorizer(tokenizer=tokenize)
-
+    
+    # Specify the model used
     clf = MultiOutputClassifier(MultinomialNB())
-
+    
+    # Specify the pipeline
     pipeline1 = Pipeline([('vectorizer',vectorizer), ('clf',clf)])
     
     # defining parameter range 
-    
     parameters = {
                   'vectorizer__use_idf': [True, False],
                   'clf__estimator__alpha': (1, 0.1)}      
 
-
+    # Hyperparameter tuning Step
     grid = GridSearchCV(pipeline1, param_grid=parameters, verbose = 2, n_jobs=-1)
     
     return grid
 
 
 def evaluate_model(model, X_test, Y_test, category_names):
+    """
+    Evaluate the Biult model using the classification Report.
+    
+    Parameters:
+    Model: The build model
+    X_test: The testing feature data
+    Y_test: The test label data
+    Category_names: Names of the target columns
+    
+    Returns:
+    Classification_report: Report that shows the performance of the model to predict each label
+ 
+    """
+    # predict
     grid_validation = model.predict(X_test)
-    for i in range(len(Y_test.columns)):
+    
+    # build classification report for each category
+    for i in range(len(category_names)):
         print('{} ------:'.format(Y_test.columns[i]))
         print(classification_report(Y_test.values[:,i],grid_validation[:,i]))
         print('\n')
 
 
 def save_model(model, model_filepath):
+    """
+    Save the Final model to be used in deployment
+    
+    Parameters:
+    model: The built model
+    model_filepath: Loaction to be saved in.
+  
+    Returns:
+    Saved Model
+ 
+    """
+    # Seriallize the model and save it
     with open(model_filepath, 'wb') as file:
         pickle.dump(model, file)
 

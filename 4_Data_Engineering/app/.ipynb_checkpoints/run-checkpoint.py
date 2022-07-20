@@ -15,15 +15,43 @@ from sqlalchemy import create_engine
 app = Flask(__name__)
 
 def tokenize(text):
-    tokens = word_tokenize(text)
+    """
+    Cleaning the text and tokenize it.
+  
+    Parameters:
+    Text: the message column
+  
+    Returns:
+    Tokens: Tokenized cleaned version of the text
+ 
+    """
+    # Lower Case
+    text = text.lower()
+    
+    # Remove punctuation
+    text = text.translate(text.maketrans("", "", string.punctuation))
+    
+    # Remove Numbers
+    text = ''.join([i for i in text if not i.isdigit()])
+    
+    # remove_spaces
+    text = " ".join(text.split())
+    
+    # remove_unicode
+    text = re.sub(r"(@\[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)|^rt|http.+?", "", text)
+    
+    # Remove stop words
+    STOPWORDS = set(stopwords.words('english'))
+    text = " ".join([word for word in str(text).split() if word not in STOPWORDS])
+    
+    # Tokenize 
+    
+    #Lemmanitizer to remove inflectional and derivationally related forms of a word
     lemmatizer = WordNetLemmatizer()
 
-    clean_tokens = []
-    for tok in tokens:
-        clean_tok = lemmatizer.lemmatize(tok).lower().strip()
-        clean_tokens.append(clean_tok)
-
-    return clean_tokens
+    # List of clean tokens
+    tokens = [lemmatizer.lemmatize(token).lower().strip() for token in text]
+    return tokens   
 
 # load data
 engine = create_engine('sqlite:///../data/DisasterResponse.db')
@@ -43,6 +71,11 @@ def index():
     genre_counts = df.groupby('genre').count()['message']
     genre_names = list(genre_counts.index)
     
+    # plot count of each category
+    categories = df[df.columns[4:]]
+    values = categories.sum(axis=0).sort_values(ascending=False)
+    categories_names = categories.columns.tolist()
+    
     # create visuals
     # TODO: Below is an example - modify to create your own visuals
     graphs = [
@@ -61,6 +94,24 @@ def index():
                 },
                 'xaxis': {
                     'title': "Genre"
+                }
+            }
+        },
+        {
+            'data': [
+                Bar(
+                    x = categories_names,
+                    y= values
+                )
+            ],
+
+            'layout': {
+                'title': 'Categories Count',
+                'yaxis': {
+                    'title': "Count"
+                },
+                'xaxis': {
+                    'title': "Category"
                 }
             }
         }

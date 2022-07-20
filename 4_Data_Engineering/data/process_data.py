@@ -3,18 +3,44 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 def load_data(messages_filepath, categories_filepath):
+    """
+    Loading the separated csv files and merge them in one dataframe using pandas
+  
+    Parameters:
+    messages_filepath: location of the message dataset to be loaded using pandas
+    categories_filepath: location of the categories dataset to be loaded using pandas
     
+    Returns:
+    df: merged dataframe of the previous datasets  
+    """
+    # Read messages dataset
     messages = pd.read_csv(messages_filepath)
+    
+    #read categories dataset
     categories = pd.read_csv(categories_filepath)
+    
+    # merge the two previous dataframes
     df = pd.merge(messages, categories, how = 'left', on = 'id')
         
     return df
     
 def clean_data(df):
-
+    """
+    This function is intended to clean the dataframe. i.e(Clean columns, remove duplicates, remove inconsistency.
+  
+    Parameters:
+    df: The dataframe which is merge of the messages and categories CSV files
+    
+    Returns:
+    df: cleaned data
+  
+    """
+    ## make dataframe for the expanded categories column in the df datafrme
     categories = df.categories.str.split(';', expand=True)
     row = categories.iloc[0]
 
+    
+    # Preprocess the new category dataframe
     category_colnames = []
     for text in row:
         category_colnames.append(text.split('-')[0])
@@ -28,18 +54,38 @@ def clean_data(df):
         # convert column from string to numeric
         categories[column] = pd.to_numeric(categories[column])
 
+    # Replace rows containing the value 2     
+    categories.replace(2, 1, inplace=True)
+    
+    # Drop the main categoris column
     df.drop(['categories'], axis = 1, inplace = True)
     
+    # Concat the dataframe and the expanded categories dataframe
     df = pd.concat([df, categories], sort = False, axis = 1)
-    
+    # Drop duplicates
     df = df.drop_duplicates()
     
     return df
 
 def save_data(df, database_filename):
+    """
+    This Function used to save the data in a Databse
+  
+  
+    Parameters:
+    df: The cleaned dataframe to be saved in a databse
+    database_filename: Name assigned to the databse
+    
+    Returns:
+    DataBase
+  
+    """
+    
+    # Save the dataframe as a database
     engine = create_engine('sqlite:///' + database_filename)
-    df.to_sql('DisasterProcess', engine, index=False)
+    df.to_sql('DisasterProcess', engine, index=False, if_exists='replace')
 
+    
 def main():
     if len(sys.argv) == 4:
 
